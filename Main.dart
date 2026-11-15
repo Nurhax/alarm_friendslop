@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import './services/alarmService.dart';
-import './datamodels/Data.dart';
-import './UI/UI.dart';
+import './datamodels/data.dart';
+import './UI/ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
