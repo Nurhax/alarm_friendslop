@@ -1,14 +1,20 @@
 name: alarm_friendslop
-description: "A new Flutter project."
+description: "Alarm yang disahre ke teman-temanmu biar gak ada yang telat bangun"
 publish_to: 'none'
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.11.4
+  sdk: ">=3.4.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  flutter_local_notifications: ^19.4.0
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
