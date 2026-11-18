@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 
-import '../services/alarmService.dart';
-import '../datamodels/models.dart';
+import '../services/alarmservice.dart';
+import '../data_models/models.dart';
+import 'alarmeditscreen.dart';
 
 // ---------- helper dialog ----------
 
@@ -255,95 +256,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _edit(),
         child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-// ---------- 3. tambah / edit alarm ----------
-
-class AlarmEditScreen extends StatefulWidget {
-  final int roomId;
-  final AlarmItem? alarm; // null = alarm baru
-  const AlarmEditScreen({super.key, required this.roomId, this.alarm});
-
-  @override
-  State<AlarmEditScreen> createState() => _AlarmEditScreenState();
-}
-
-class _AlarmEditScreenState extends State<AlarmEditScreen> {
-  late TimeOfDay _time = widget.alarm != null
-      ? TimeOfDay(hour: widget.alarm!.hour, minute: widget.alarm!.minute)
-      : TimeOfDay.now();
-  late final _label = TextEditingController(text: widget.alarm?.label ?? '');
-  late final Set<int> _days = Set.of(widget.alarm?.days ?? <int>{});
-
-  Future<void> _pickTime() async {
-    final t = await showTimePicker(context: context, initialTime: _time);
-    if (t != null) setState(() => _time = t);
-  }
-
-  Future<void> _save() async {
-    await alarmService.save(AlarmItem(
-      id: widget.alarm?.id,
-      roomId: widget.roomId,
-      hour: _time.hour,
-      minute: _time.minute,
-      label: _label.text.trim(),
-      enabled: true,
-      days: Set.of(_days),
-    ));
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  void dispose() {
-    _label.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final hh = _time.hour.toString().padLeft(2, '0');
-    final mm = _time.minute.toString().padLeft(2, '0');
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.alarm == null ? 'Alarm baru' : 'Edit alarm'),
-        actions: [TextButton(onPressed: _save, child: const Text('Simpan'))],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          InkWell(
-            onTap: _pickTime,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text('$hh:$mm',
-                    style: Theme.of(context).textTheme.displayLarge),
-              ),
-            ),
-          ),
-          TextField(
-            controller: _label,
-            decoration: const InputDecoration(labelText: 'Label (opsional)'),
-          ),
-          const SizedBox(height: 24),
-          const Text('Ulangi (kosongkan = sekali saja)'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (var d = 1; d <= 7; d++)
-                FilterChip(
-                  label: Text(dayNames[d - 1]),
-                  selected: _days.contains(d),
-                  onSelected: (s) =>
-                      setState(() => s ? _days.add(d) : _days.remove(d)),
-                ),
-            ],
-          ),
-        ],
       ),
     );
   }

@@ -25,7 +25,15 @@ class SqliteAlarmRepository implements AlarmRepository {
   static Future<SqliteAlarmRepository> open() async {
     final db = await openDatabase(
       p.join(await getDatabasesPath(), 'alarm_bareng.db'),
-      version: 1,
+      version: 2,
+      onUpgrade: (db, oldVersion, _) async {
+        if (oldVersion < 2) {
+          await db.execute(
+              "ALTER TABLE alarms ADD COLUMN image_url TEXT NOT NULL DEFAULT ''");
+          await db.execute(
+              "ALTER TABLE alarms ADD COLUMN audio_url TEXT NOT NULL DEFAULT ''");
+        }
+      },
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE rooms(
@@ -42,7 +50,9 @@ class SqliteAlarmRepository implements AlarmRepository {
             label TEXT NOT NULL DEFAULT '',
             enabled INTEGER NOT NULL DEFAULT 1,
             days TEXT NOT NULL DEFAULT '',
-            once_at INTEGER
+            once_at INTEGER,
+            image_url TEXT NOT NULL DEFAULT '',
+            audio_url TEXT NOT NULL DEFAULT ''
           )''');
       },
     );

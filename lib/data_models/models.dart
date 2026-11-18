@@ -46,6 +46,10 @@ class AlarmItem {
   /// Khusus alarm sekali: waktu bunyi (epoch ms) yang sudah dijadwalkan.
   final int? onceAt;
 
+  /// URL gambar pop-up & URL suara alarm ('' = tidak ada, pakai default).
+  final String imageUrl;
+  final String audioUrl;
+
   const AlarmItem({
     this.id,
     required this.roomId,
@@ -55,6 +59,8 @@ class AlarmItem {
     this.enabled = true,
     this.days = const {},
     this.onceAt,
+    this.imageUrl = '',
+    this.audioUrl = '',
   });
 
   AlarmItem copyWith({
@@ -66,6 +72,8 @@ class AlarmItem {
     Set<int>? days,
     int? onceAt,
     bool clearOnceAt = false,
+    String? imageUrl,
+    String? audioUrl,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -76,6 +84,8 @@ class AlarmItem {
         enabled: enabled ?? this.enabled,
         days: days ?? this.days,
         onceAt: clearOnceAt ? null : (onceAt ?? this.onceAt),
+        imageUrl: imageUrl ?? this.imageUrl,
+        audioUrl: audioUrl ?? this.audioUrl,
       );
 
   String get timeText =>
@@ -97,6 +107,8 @@ class AlarmItem {
         'enabled': enabled ? 1 : 0,
         'days': (days.toList()..sort()).join(','),
         'once_at': onceAt,
+        'image_url': imageUrl,
+        'audio_url': audioUrl,
       };
 
   factory AlarmItem.fromMap(Map<String, Object?> m) {
@@ -110,6 +122,8 @@ class AlarmItem {
       enabled: (m['enabled'] as int) == 1,
       days: d.isEmpty ? <int>{} : d.split(',').map(int.parse).toSet(),
       onceAt: m['once_at'] as int?,
+      imageUrl: (m['image_url'] as String?) ?? '',
+      audioUrl: (m['audio_url'] as String?) ?? '',
     );
   }
 }
