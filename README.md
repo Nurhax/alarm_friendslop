@@ -9,30 +9,38 @@ Aplikasi alarm Flutter yang dikelompokkan dalam **room** yang bisa dishare. Kons
 - Buat, ganti nama, dan hapus **room**
 - **CRUD alarm** di dalam room: tambah, edit jam/label, hapus (swipe), toggle on/off
 - Alarm **sekali** atau **berulang mingguan** (pilih hari Sen–Min)
-- Alarm sekali otomatis mati setelah bunyi
+- Alarm sekali hanya dijadwalkan satu kali dan tidak diulang setelah waktunya lewat
 - **Share** room lewat share sheet (nama, kode, dan link)
 - Gabung room lewat kode atau link
-- Alarm bunyi walau app ditutup (dijadwalkan ke OS), dijadwalkan ulang setelah reboot
+- Alarm bunyi walau app ditutup (dijadwalkan ke OS)
+- Layar alarm full-screen dengan tombol **CHECK-IN**
+- Gambar pop-up dan suara custom dari URL HTTPS (di-cache lokal sebelum alarm bunyi)
+- Alarm uji yang bunyi 30 detik kemudian
 
 ## Cara kerja alarm
 
-Bunyi atau tidaknya alarm **murni berdasarkan jam device**. App menjadwalkan notifikasi exact alarm ke OS lewat `flutter_local_notifications` (mode `alarmClock`, full-screen intent, suara berulang sampai di-dismiss). Setiap perubahan alarm (tambah, edit, hapus, toggle) langsung disinkronkan ke jadwal OS lewat `AlarmService`.
+Bunyi atau tidaknya alarm **murni berdasarkan jam device**. App menjadwalkan exact alarm ke OS lewat package `alarm`, dengan full-screen intent, getar, dan suara berulang sampai di-check-in atau dihentikan. Setiap perubahan alarm (tambah, edit, hapus, toggle) langsung disinkronkan ke jadwal OS lewat `AlarmService`.
+
+Package `alarm` tidak menyediakan repeat langsung. Karena itu alarm mingguan dijadwalkan sebagai alarm tunggal untuk 28 hari ke depan, lalu dijadwalkan ulang saat app dibuka. Alarm sekali disimpan dengan waktu bunyi (`onceAt`) agar tidak dijadwalkan ulang setelah lewat.
 
 ## Struktur project
 
 ```
 lib/
-  main.dart                  # entry point, inisialisasi DB + AlarmService
-  datamodels/
-    models.dart              # Room, AlarmItem
-    data.dart                # AlarmRepository (abstract) + SqliteAlarmRepository
+  main.dart                  # entry point, DB, AlarmService, dan deteksi alarm berbunyi
+  data_models/
+    models.dart              # Room, AlarmItem, dan format share link
+    data.dart                # AlarmRepository + implementasi SQLite lokal
   services/
-    alarm_service.dart       # penjadwalan alarm ke OS + logika sinkronisasi
+    alarmservice.dart        # penjadwalan OS, repeat 28 hari, dan sinkronisasi
+    mediacache.dart          # download/cache gambar dan suara dari URL HTTPS
   ui/
-    ui.dart                  # RoomListScreen, RoomDetailScreen, AlarmEditScreen
+    ui.dart                  # daftar room, detail room, CRUD alarm, dan share
+    alarmeditscreen.dart     # form waktu, label, repeat, gambar, dan suara
+    ringscreen.dart          # layar full-screen saat alarm berbunyi
 ```
 
-Arsitektur singkatnya: UI hanya bicara ke `AlarmService`, dan `AlarmService` bicara ke `AlarmRepository`. Karena repository berupa interface, penyimpanan lokal nanti bisa diganti Firebase/Supabase/REST tanpa mengubah UI.
+Arsitektur singkatnya: UI memakai `AlarmService` untuk operasi alarm, sedangkan data room/alarm diakses melalui `AlarmRepository`. Implementasi saat ini adalah `SqliteAlarmRepository`; karena repository berupa interface, penyimpanan lokal nanti bisa diganti Firebase/Supabase/REST tanpa mengubah UI.
 
 ## Setup
 
@@ -49,31 +57,20 @@ flutter run
 
 **1. `android/app/src/main/AndroidManifest.xml`**
 
-Di dalam `<manifest>`, di atas `<application>`:
+Pastikan permission berikut tersedia di dalam `<manifest>` (konfigurasi saat ini sudah menyediakannya):
 
 ```xml
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
 <uses-permission android:name="android.permission.VIBRATE"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+<uses-permission android:name="android.permission.INTERNET"/>
 ```
 
-Di dalam `<application>`:
-
-```xml
-<receiver android:exported="false"
-    android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
-<receiver android:exported="false"
-    android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
-    <intent-filter>
-        <action android:name="android.intent.action.BOOT_COMPLETED"/>
-        <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-        <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
-        <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
-    </intent-filter>
-</receiver>
-```
+Tidak perlu menambahkan receiver `flutter_local_notifications`; project ini memakai package `alarm`.
 
 **2. `android/app/build.gradle.kts`** (core library desugaring)
 
@@ -103,17 +100,19 @@ dependencies {
 | Package | Fungsi |
 |---|---|
 | `sqflite`, `path` | Database SQLite lokal |
-| `flutter_local_notifications` | Penjadwalan alarm ke OS |
-| `timezone`, `flutter_timezone` | Perhitungan waktu sesuai zona device |
+| `alarm` | Penjadwalan exact alarm, audio, getar, dan full-screen intent |
 | `share_plus` | Share kode/link room |
+| `http`, `crypto`, `path_provider` | Download dan cache media berdasarkan URL |
+| `permission_handler` | Meminta izin notifikasi dan exact alarm |
 
-Versi di-pin ke `flutter_local_notifications ^19`, `share_plus ^10`, dan `flutter_timezone ^4` karena API-nya berubah di versi yang lebih baru.
+Versi package dan SDK yang dipakai tercantum di [`pubspec.yaml`](pubspec.yaml). Project membutuhkan Flutter dengan Dart SDK `>=3.4.0 <4.0.0`.
 
 ## Keterbatasan saat ini
 
 - Kode/link room hanya dikenali di device yang sama (belum ada sync).
 - Link share (`alarmbareng.example`) masih placeholder, belum ada deep link.
-- Alarm berupa notifikasi full-screen, belum ada layar alarm custom.
+- Jadwal alarm mingguan hanya dibuat 28 hari ke depan dan diisi ulang saat app dibuka.
+- Media custom bergantung pada URL HTTPS yang masih tersedia saat pertama kali disimpan.
 - Belum ada autentikasi atau pembatasan hak akses: siapa pun yang punya kode berhak penuh (CRUD).
 
 ## Roadmap
@@ -122,5 +121,4 @@ Versi di-pin ke `flutter_local_notifications ^19`, `share_plus ^10`, dan `flutte
 - [ ] Sinkronisasi realtime antar device
 - [ ] Deep link supaya link share langsung membuka room
 - [ ] Penanganan konflik edit bersamaan
-- [ ] Layar alarm custom (mis. memakai package `alarm`)
 - [ ] Hak akses per room (owner vs anggota)
